@@ -6,7 +6,7 @@ title = "svh"
 version = "0.1.0"
 authors = ["My Name <todo@example.com>"]
 icon = "metadata/icon.png"
-compile_ruby = false
+compile_ruby = true
 
 [dragonruby]
 version = "3.17"
