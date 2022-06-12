@@ -11,6 +11,12 @@ class Link
     @draw_this = draw_me
 
     @tear_sensitivity = tear_sensitivity
+
+    # Inverse the mass quantities
+    im1 = 1 / @p1.mass
+    im2 = 1 / @p2.mass
+    @scalar_p1 = (im1 / (im1 + im2)) * @stiffness
+    @scalar_p2 = @stiffness - @scalar_p1
   end
 
   # Solve the link constraint
@@ -23,22 +29,16 @@ class Link
     # if the distance is more than curtainTearSensitivity, the cloth tears
     @p1.remove_link(self) if d > @tear_sensitivity
 
-    # Inverse the mass quantities
-    im1 = 1 / @p1.mass
-    im2 = 1 / @p2.mass
-    scalar_p1 = (im1 / (im1 + im2)) * @stiffness
-    scalar_p2 = @stiffness - scalar_p1
-
     # find the difference, or the ratio of how far along the restingDistance the actual distance is.
     difference = (@resting_distance - d) / d
 
     # Push/pull based on mass
     # heavier objects will be pushed/pulled less than attached light objects
-    @p1.x += diffx * scalar_p1 * difference
-    @p1.y += diffy * scalar_p1 * difference
+    @p1.x += diffx * @scalar_p1 * difference
+    @p1.y += diffy * @scalar_p1 * difference
 
-    @p2.x -= diffx * scalar_p2 * difference
-    @p2.y -= diffy * scalar_p2 * difference
+    @p2.x -= diffx * @scalar_p2 * difference
+    @p2.y -= diffy * @scalar_p2 * difference
   end
 
   def draw(ffi)

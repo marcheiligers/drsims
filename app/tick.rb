@@ -6,5 +6,5 @@ end
 def tick(_args)
   $sim.handle_inputs
   $sim.tick
-  # $args.outputs.labels << { x: 20, y: 700, text: "FPS: #{$gtk.current_framerate.round(2)}" }
+  $args.outputs.labels << { x: 20, y: 700, text: "FPS: #{$gtk.current_framerate.round(2)}" }
 end

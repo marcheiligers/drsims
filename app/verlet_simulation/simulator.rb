@@ -10,7 +10,7 @@ BODIES = 25
 CURTAIN_HEIGHT = 60
 CURTAIN_WIDTH = 40
 Y_START = 720 - 25
-RESTING_DISTANCES = 6
+RESTING_DISTANCES = 8
 STIFFNESSES = 1
 CURTAIN_TEAR_SENSITIVITY = 50
 
@@ -32,8 +32,6 @@ class Simulator
   attr_reader :pmouse_x, :pmouse_y
 
   def initialize
-    @pointmasses = []
-    @circles = []
     @gravity = -980
 
     @pmouse_x = 0
@@ -42,6 +40,7 @@ class Simulator
 
   def setup
     @pointmasses = []
+    @circles = []
 
     create_curtain
     create_bodies
@@ -95,6 +94,7 @@ class Simulator
   end
 
   def add_outputs
+    $args.outputs.static_lines.clear
     $args.outputs.static_lines << @pointmasses
     $args.outputs.static_lines << @circles
   end
@@ -142,6 +142,71 @@ class Simulator
     end
   end
 
+  def create_tri_curtain
+    mid_width = (WIDTH / 2 - (CURTAIN_WIDTH * RESTING_DISTANCES) / 2)
+    rows = []
+    row = nil
+    CURTAIN_HEIGHT.times do |y|
+      prev_row = row
+      row = []
+      (CURTAIN_WIDTH + (y.odd? ? 1 : 0)).times do |x|
+        pointmass = PointMass.new(mid_width + x * RESTING_DISTANCES + (y.odd? ? 0 : RESTING_DISTANCES / 2), Y_START - y * RESTING_DISTANCES)
+
+        # attach left
+        pointmass.attach_to(row[x - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x != 0
+
+        if y == 0
+          pointmass.pin_to(pointmass.x, pointmass.y)
+        elsif y.odd?
+          pointmass.attach_to(prev_row[x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x < CURTAIN_WIDTH
+          pointmass.attach_to(prev_row[x - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x > 0
+        else
+          pointmass.attach_to(prev_row[x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+          pointmass.attach_to(prev_row[x + 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+        end
+
+        row.push(pointmass)
+      end
+      rows << row
+    end
+    @pointmasses = rows.flatten
+  end
+
+  def create_hex_curtain
+    mid_width = (WIDTH / 2 - (CURTAIN_WIDTH * RESTING_DISTANCES) / 2)
+    rows = []
+    row = nil
+    CURTAIN_HEIGHT.times do |y|
+      prev_row = row
+      row = []
+      CURTAIN_WIDTH.times do |x|
+        if x == 0
+          x_offset = mid_width + (y.odd? ? (RESTING_DISTANCES / 2) : 0)
+          pointmass = PointMass.new(x_offset, Y_START - y * RESTING_DISTANCES)
+        elsif (y.even? && x.odd?) || (y.odd? && x.even? && x > 0)
+          x_offset = mid_width + (RESTING_DISTANCES / 2) + (x + 1) * RESTING_DISTANCES
+          pointmass = PointMass.new(x_offset, Y_START - y * RESTING_DISTANCES)
+
+          # attach left
+          pointmass.attach_to(row[x - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+        else
+          x_offset = mid_width + (x + 1) * RESTING_DISTANCES
+          pointmass = PointMass.new(x_offset, Y_START - y * RESTING_DISTANCES)
+        end
+
+        if y == 0
+          pointmass.pin_to(pointmass.x, pointmass.y)
+        else
+          pointmass.attach_to(prev_row[x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+        end
+
+        row.push(pointmass)
+      end
+      rows << row
+    end
+    @pointmasses = rows.flatten
+  end
+
   def create_bodies
     BODIES.times do
       Body.new(rand(WIDTH), rand(HEIGHT), 40)
@@ -150,13 +215,7 @@ class Simulator
 
   # Controls. The r key resets the curtain, g toggles gravity
   def handle_inputs
-    if $args.inputs.keyboard.key_down.r
-      @pointmasses = []
-      @circles = []
-      create_curtain
-      create_bodies
-    end
-
+    setup if $args.inputs.keyboard.key_down.r
     toggle_gravity if $args.inputs.keyboard.key_down.g
   end
 

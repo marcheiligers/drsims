@@ -1,7 +1,7 @@
 class PointMass
   attr_sprite
-  attr_accessor :x, :y
-  attr_reader :mass, :links
+  attr_accessor :x, :y, :mass
+  attr_reader :links
 
   # PointMass constructor
   def initialize(x, y)
@@ -97,7 +97,7 @@ class PointMass
       i += 1
     end
 
-    if pinned
+    if @pinned
       # Other Constraints
       # make sure the PointMass stays in its place if it's pinned
       @x = @pin_x
