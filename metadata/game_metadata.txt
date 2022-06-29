@@ -7,4 +7,4 @@ gameid=svh
 gametitle=svh
 version=0.1.0
 icon=metadata/icon.png
-compile_ruby=false
+compile_ruby=true

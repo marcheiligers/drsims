@@ -6,20 +6,8 @@ class Body
   # / | \
   #  / \
   # |   |
-  attr_accessor :head
-  attr_accessor :shoulder
-  attr_accessor :elbow_left
-  attr_accessor :elbow_right
-  attr_accessor :hand_left
-  attr_accessor :hand_right
-  attr_accessor :pelvis
-  attr_accessor :knee_left
-  attr_accessor :knee_right
-  attr_accessor :foot_left
-  attr_accessor :foot_right
-  attr_accessor :head_circle
-  attr_accessor :head_width
-  attr_accessor :head_length
+  attr_reader :head, :shoulder, :elbow_left, :elbow_right, :hand_left, :hand_right, :pelvis, :knee_left,
+              :knee_right, :foot_left, :foot_right, :head_circle, :head_width, :head_length
 
   def initialize(x, y, body_height)
     @head_length = body_height / 7.5
@@ -73,7 +61,7 @@ class Body
     head_circle.attach_to_point_mass(head)
 
     # TODO: all this is global
-    $sim.physics.add_circle(head_circle)
+    $sim.add_circle(head_circle)
     $sim.add_point_mass(head)
     $sim.add_point_mass(shoulder)
     $sim.add_point_mass(pelvis)
@@ -87,18 +75,18 @@ class Body
     $sim.add_point_mass(foot_right)
   end
 
-  def remove_from_world
-    $sim.physics.remove_circle(head_circle)
-    $sim.remove_point_mass(head)
-    $sim.remove_point_mass(shoulder)
-    $sim.remove_point_mass(pelvis)
-    $sim.remove_point_mass(elbow_left)
-    $sim.remove_point_mass(elbow_right)
-    $sim.remove_point_mass(hand_left)
-    $sim.remove_point_mass(hand_right)
-    $sim.remove_point_mass(knee_left)
-    $sim.remove_point_mass(knee_right)
-    $sim.remove_point_mass(foot_left)
-    $sim.remove_point_mass(foot_right)
-  end
+  # def remove_from_world
+  #   $sim.physics.remove_circle(head_circle)
+  #   $sim.remove_point_mass(head)
+  #   $sim.remove_point_mass(shoulder)
+  #   $sim.remove_point_mass(pelvis)
+  #   $sim.remove_point_mass(elbow_left)
+  #   $sim.remove_point_mass(elbow_right)
+  #   $sim.remove_point_mass(hand_left)
+  #   $sim.remove_point_mass(hand_right)
+  #   $sim.remove_point_mass(knee_left)
+  #   $sim.remove_point_mass(knee_right)
+  #   $sim.remove_point_mass(foot_left)
+  #   $sim.remove_point_mass(foot_right)
+  # end
 end

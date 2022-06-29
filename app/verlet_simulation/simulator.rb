@@ -1,108 +1,119 @@
 # https://gamedevelopment.tutsplus.com/tutorials/simulate-tearable-cloth-and-ragdolls-with-simple-verlet-integration--gamedev-519
+HEIGHT = 720
+WIDTH = 1280
+
+MOUSE_INFLUENCE_SIZE = 20 * 20 # squared
+MOUSE_TEAR_SIZE = 8 * 8 # squared
+
+BODIES = 25
+
+CURTAIN_HEIGHT = 60
+CURTAIN_WIDTH = 40
+Y_START = 720 - 25
+RESTING_DISTANCES = 8
+STIFFNESSES = 1
+CURTAIN_TEAR_SENSITIVITY = 50
+
+TIME_STEP_AMT_MIN = 1
+CONSTRAINT_ACCURACY = 3
+FIXED_DELTA_TIME = 16
+FIXED_DELTA_TIME_SECONDS = FIXED_DELTA_TIME / 1000.0
+FIXED_DELTA_TIME_SECONDS_SQ = FIXED_DELTA_TIME_SECONDS * FIXED_DELTA_TIME_SECONDS
+MOUSE_INFLUENCE_SCALAR = 1.0 / TIME_STEP_AMT_MIN
+
 class Simulator
   # Where we'll store all of the points
-  attr_accessor :pointmasses
-
-  # every PointMass within this many pixels will be influenced by the cursor
-  attr_accessor :mouse_influence_size
-  # minimum distance for tearing when user is right clicking
-  attr_accessor :mouse_tear_size
-  attr_accessor :mouse_influence_scalar
+  attr_reader :pointmasses, :circles
 
   # amount to accelerate everything downward
-  attr_accessor :gravity
+  attr_reader :gravity
 
-  # Dimensions for our curtain. These are number of PointMasss for each direction, not actual widths and heights
-  # the true width and height can be calculated by multiplying resting_distances by the curtain dimensions
-  attr_accessor :curtain_height
-  attr_accessor :curtain_width
-  attr_accessor :y_start # where will the curtain start on the y axis?
-  attr_accessor :resting_distances
-  attr_accessor :stiffnesses
-  attr_accessor :curtain_tear_sensitivity # distance the PointMasss have to go before ripping
-
-  # Physics, see physics.pde
-  attr_accessor :physics
-
-  attr_accessor :width, :height
+  # previous mouse position
+  attr_reader :pmouse_x, :pmouse_y
 
   def initialize
-    @pointmasses = []
-
-    @mouse_influence_size = 20
-    @mouse_tear_size = 8
-    @mouse_influence_scalar = 5
     @gravity = -980
 
-    @curtain_height = 40
-    @curtain_width = 60
-    @y_start = 720 - 25
-    @resting_distances = 6
-    @stiffnesses = 1
-    @curtain_tear_sensitivity = 50
+    @pmouse_x = 0
+    @pmouse_y = 0
   end
 
   def setup
-    # TODO: handle size (width/height)
-    size(1280, 720)
-
-    @physics = Physics.new
-
-    # we square the mouse_influence_size and mouse_tear_size so we don't have to use squareRoot when comparing distances with this.
-    @mouse_influence_size *= mouse_influence_size
-    @mouse_tear_size *= mouse_tear_size
-
-    # We use an ArrayList instead of an array so we can add or remove PointMasss at will.
-    # not that it isn't possible using an array, it's just more convenient this way
     @pointmasses = []
+    @circles = []
 
-    # create the curtain
     create_curtain
-
-    # create the ragdolls
     create_bodies
+    add_outputs
   end
 
-  def size(w, h)
-    @width = w
-    @height = h
-  end
-
-  def draw
+  def tick
     $args.outputs.background_color = [255, 255, 255]
 
-    physics.update
+    ca = 0
+    while ca < CONSTRAINT_ACCURACY
+      l = @pointmasses.size
+      i = 0
+      while i < l
+        @pointmasses[i].solve_constraints
+        i += 1
+      end
 
-    update_graphics
+      l = @circles.size
+      i = 0
+      while i < l
+        @circles[i].solve_constraints
+        i += 1
+      end
 
-    # Print frame rate every now and then
-    #  if (frameCount % 60 == 0)
-    #    println("Frame rate is " + frameRate);
-    $args.outputs.labels << { x: 20, y: $args.grid.top - 20, text: "FPS: #{$gtk.current_framerate.to_s}" }
+      ca += 1
+    end
+
+    # update each PointMass's position
+    mouse_x = $args.inputs.mouse.x
+    mouse_y = $args.inputs.mouse.y
+    button_left = $args.inputs.mouse.button_left
+    button_right = $args.inputs.mouse.button_right
+    l = @pointmasses.size
+    i = 0
+    while i < l
+      @pointmasses[i].update(mouse_x, mouse_y, @pmouse_x, @pmouse_y, button_left, button_right, @gravity)
+      i += 1
+    end
+
+    @pmouse_x = mouse_x
+    @pmouse_y = mouse_y
   end
 
-  # Draw everything
-  def update_graphics
-    pointmasses.each(&:draw)
-    physics.circles.each(&:draw)
+  def add_circle(c)
+    @circles.push(c)
+  end
+
+  def remove_circle(c)
+    @circles.delete(c)
+  end
+
+  def add_outputs
+    $args.outputs.static_lines.clear
+    $args.outputs.static_lines << @pointmasses
+    $args.outputs.static_lines << @circles
   end
 
   def add_point_mass(p)
-    pointmasses.push(p)
+    @pointmasses.push(p)
   end
 
   def remove_point_mass(p)
-    pointmasses.delete(p)
+    @pointmasses.delete(p)
   end
 
   def create_curtain
     # mid_width: amount to translate the curtain along x-axis for it to be centered
-    # (curtain_width * resting_distances) = curtain's pixel width
-    mid_width = (width / 2 - (curtain_width * resting_distances) / 2)
+    mid_width = (WIDTH / 2 - (CURTAIN_WIDTH * RESTING_DISTANCES) / 2)
     # Since this our fabric is basically a grid of points, we have two loops
-    curtain_height.times do |y| # due to the way PointMasss are attached, we need the y loop on the outside
-      curtain_width.times do |x|
-        pointmass = PointMass.new(mid_width + x * resting_distances, y_start - y * resting_distances);
+    CURTAIN_HEIGHT.times do |y| # due to the way PointMasss are attached, we need the y loop on the outside
+      CURTAIN_WIDTH.times do |x|
+        pointmass = PointMass.new(mid_width + x * RESTING_DISTANCES, Y_START - y * RESTING_DISTANCES)
 
         # attach to
         # x - 1  and
@@ -114,7 +125,7 @@ class Simulator
         #
         # PointMass attach_to parameters: PointMass PointMass, float restingDistance, float stiffness
         # try disabling the next 2 lines (the if statement and attach_to part) to create a hairy effect
-        pointmass.attach_to(pointmasses[pointmasses.size - 1], resting_distances, stiffnesses, curtain_tear_sensitivity) if x != 0
+        pointmass.attach_to(@pointmasses[@pointmasses.size - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x != 0
 
         if y == 0
           # we pin the very top PointMasss to where they are
@@ -122,55 +133,93 @@ class Simulator
         else
           # the index for the PointMasss are one dimensions,
           # so we convert x,y coordinates to 1 dimension using the formula y*width+x
-          pointmass.attach_to(pointmasses[(y - 1) * curtain_width + x], resting_distances, stiffnesses, curtain_tear_sensitivity)
+          pointmass.attach_to(@pointmasses[(y - 1) * CURTAIN_WIDTH + x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
         end
 
         # add to PointMass array
-        pointmasses.push(pointmass)
+        @pointmasses.push(pointmass)
       end
     end
   end
 
+  def create_tri_curtain
+    mid_width = (WIDTH / 2 - (CURTAIN_WIDTH * RESTING_DISTANCES) / 2)
+    rows = []
+    row = nil
+    CURTAIN_HEIGHT.times do |y|
+      prev_row = row
+      row = []
+      (CURTAIN_WIDTH + (y.odd? ? 1 : 0)).times do |x|
+        pointmass = PointMass.new(mid_width + x * RESTING_DISTANCES + (y.odd? ? 0 : RESTING_DISTANCES / 2), Y_START - y * RESTING_DISTANCES)
+
+        # attach left
+        pointmass.attach_to(row[x - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x != 0
+
+        if y == 0
+          pointmass.pin_to(pointmass.x, pointmass.y)
+        elsif y.odd?
+          pointmass.attach_to(prev_row[x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x < CURTAIN_WIDTH
+          pointmass.attach_to(prev_row[x - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY) if x > 0
+        else
+          pointmass.attach_to(prev_row[x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+          pointmass.attach_to(prev_row[x + 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+        end
+
+        row.push(pointmass)
+      end
+      rows << row
+    end
+    @pointmasses = rows.flatten
+  end
+
+  def create_hex_curtain
+    mid_width = (WIDTH / 2 - (CURTAIN_WIDTH * RESTING_DISTANCES) / 2)
+    rows = []
+    row = nil
+    CURTAIN_HEIGHT.times do |y|
+      prev_row = row
+      row = []
+      CURTAIN_WIDTH.times do |x|
+        if x == 0
+          x_offset = mid_width + (y.odd? ? (RESTING_DISTANCES / 2) : 0)
+          pointmass = PointMass.new(x_offset, Y_START - y * RESTING_DISTANCES)
+        elsif (y.even? && x.odd?) || (y.odd? && x.even? && x > 0)
+          x_offset = mid_width + (RESTING_DISTANCES / 2) + (x + 1) * RESTING_DISTANCES
+          pointmass = PointMass.new(x_offset, Y_START - y * RESTING_DISTANCES)
+
+          # attach left
+          pointmass.attach_to(row[x - 1], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+        else
+          x_offset = mid_width + (x + 1) * RESTING_DISTANCES
+          pointmass = PointMass.new(x_offset, Y_START - y * RESTING_DISTANCES)
+        end
+
+        if y == 0
+          pointmass.pin_to(pointmass.x, pointmass.y)
+        else
+          pointmass.attach_to(prev_row[x], RESTING_DISTANCES, STIFFNESSES, CURTAIN_TEAR_SENSITIVITY)
+        end
+
+        row.push(pointmass)
+      end
+      rows << row
+    end
+    @pointmasses = rows.flatten
+  end
+
   def create_bodies
-    25.times do
-      Body.new(rand(width), rand(height), 40)
+    BODIES.times do
+      Body.new(rand(WIDTH), rand(HEIGHT), 40)
     end
   end
 
   # Controls. The r key resets the curtain, g toggles gravity
   def handle_inputs
-    if $args.inputs.keyboard.key_down.r
-      @pointmasses = []
-      physics.circles = []
-      create_curtain
-      create_bodies
-    end
-
+    setup if $args.inputs.keyboard.key_down.r
     toggle_gravity if $args.inputs.keyboard.key_down.g
   end
 
   def toggle_gravity
     @gravity = gravity == 0 ? -980 : 0
-  end
-
-  # Using http://www.codeguru.com/forum/showpost.php?p=1913101&postcount=16
-  # We use this to have consistent interaction
-  # so if the cursor is moving fast, it won't interact only in spots where the applet registers it at
-  def dist_point_to_segment_squared(linex1, liney1, linex2, liney2, pointx, pointy)
-    vx = linex1 - pointx
-    vy = liney1 - pointy
-    ux = linex2 - linex1
-    uy = liney2 - liney1
-
-    len = ux * ux + uy * uy
-    det = (-vx * ux) + (-vy * uy)
-    if (det < 0) || (det > len)
-      ux = linex2 - pointx
-      uy = liney2 - pointy
-      return [vx * vx + vy * vy, ux * ux + uy * uy].min
-    end
-
-    det = ux * vy - uy * vx
-    (det * det) / len
   end
 end
