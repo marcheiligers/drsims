@@ -21,24 +21,34 @@ class Link
 
   # Solve the link constraint
   def solve
-    # calculate the distance between the two PointMasss
-    diffx = @p1.x - @p2.x
-    diffy = @p1.y - @p2.y
-    d = Math.sqrt(diffx * diffx + diffy * diffy)
+    result = Verlet_solve(@p1.x.to_f, @p1.y.to_f, @p2.x.to_f, @p2.y.to_f,
+                       @tear_sensitivity.to_f, @resting_distance.to_f,
+                       @scalar_p1.to_f, @scalar_p2.to_f)
+puts "#{tear_sensitivity} --> #{result.rm}"
+    @p1.remove_link(self) if result.rm == 1
+    @p1.x = result.p1x
+    @p1.y = result.p1y
+    @p2.x = result.p2x
+    @p2.y = result.p2y
 
-    # if the distance is more than curtainTearSensitivity, the cloth tears
-    @p1.remove_link(self) if d > @tear_sensitivity
+    # # calculate the distance between the two PointMasss
+    # diffx = @p1.x - @p2.x
+    # diffy = @p1.y - @p2.y
+    # d = Math.sqrt(diffx * diffx + diffy * diffy)
 
-    # find the difference, or the ratio of how far along the restingDistance the actual distance is.
-    difference = (@resting_distance - d) / d
+    # # if the distance is more than curtainTearSensitivity, the cloth tears
+    # @p1.remove_link(self) if d > @tear_sensitivity
 
-    # Push/pull based on mass
-    # heavier objects will be pushed/pulled less than attached light objects
-    @p1.x += diffx * @scalar_p1 * difference
-    @p1.y += diffy * @scalar_p1 * difference
+    # # find the difference, or the ratio of how far along the restingDistance the actual distance is.
+    # difference = (@resting_distance - d) / d
 
-    @p2.x -= diffx * @scalar_p2 * difference
-    @p2.y -= diffy * @scalar_p2 * difference
+    # # Push/pull based on mass
+    # # heavier objects will be pushed/pulled less than attached light objects
+    # @p1.x += diffx * @scalar_p1 * difference
+    # @p1.y += diffy * @scalar_p1 * difference
+
+    # @p2.x -= diffx * @scalar_p2 * difference
+    # @p2.y -= diffy * @scalar_p2 * difference
   end
 
   def draw(ffi)
